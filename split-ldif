@@ -1,0 +1,35 @@
+#! /usr/bin/env perl
+#dalevizo @ 2014-02-12
+
+die $0 =~ /([^\/]+)$/, &usage() unless (@ARGV == 1);
+
+#default values
+$num=$ARGV[0];
+$part=1;
+$i=0;
+
+open(FILE,">>part_$part.ldif");
+while(<STDIN>) {
+	if($_ =~ /^$/ ) {	
+			print FILE "\n";
+			$i++;
+			if($i eq $num) {
+				$part++;
+				close FILE;
+				open(FILE,">>part_$part.ldif");
+				$i=0;
+			}
+	}
+	print FILE $_;
+}
+close FILE;
+
+sub usage {
+print <<EOF;
+split-ldif <entries per file>
+This program reads from the STDIN and splits a large ldif into smaller ones with specified number of entries in each one
+Example :
+\$ zcat /sample.ldif.gz | ldif-split 1000
+EOF
+exit 1;
+}

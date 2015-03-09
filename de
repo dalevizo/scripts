@@ -1,0 +1,27 @@
+#! /usr/bin/env perl
+#dalevizo @ 2012-02-20
+
+die $0 =~ /([^\/]+)$/, &usage() unless (@ARGV == 1);
+
+#default values
+$str=$ARGV[0];
+$inrec=0;
+
+while(<STDIN>) {
+if($_ =~ /^dn:/ && $_ =~ /$str/i) { $inrec=1; }
+if($_ =~ /^$/ || eof) {	
+	if($inrec==1) { print "\n"; }
+	$inrec=0; 
+	}
+if($inrec==1) { print $_; }
+}
+
+sub usage {
+print <<EOF;
+de <string to str>
+This program reads from the STDIN and extracts specific records from an LDAP dump
+Example :
+\$ zcat /sample.ldif.gz | de dalevizo
+EOF
+exit 1;
+}
