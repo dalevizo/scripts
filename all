@@ -1,0 +1,93 @@
+#!/bin/bash
+if [ $USER != "root" ]; then
+        echo "Please run this as root"
+        exit 0
+fi
+
+#systems declarations
+pop3="pop01 pop02 pop03 pop04 pop05 pop06 pop07 pop08 pop09 pop10 pop11 pop12"
+directors="director3 director4 director5"
+painters="picasso elgreco vermeer davinci"
+ldap="ldap0 ldap1 ldap2 ldap3 ldap4"
+ldapmasters="mrldap1 mrldap2"
+management="noc pythia"
+db="db1 db2 pgsql1 pgsql2"
+netapp="iron maiden deep purple lucky luke menir obelix sith jedi"
+all=$(echo $pop3 $directors $painters $ldap $ldapmasters $management $db $netapp | sort -u)
+
+#find out how we were called and what we're supposed to do
+name=`echo $0|awk -F/ '{print $NF}'`
+
+# echo $0
+# echo $name
+
+case $name in
+Pall)
+	TARGET=$all
+	LOOP="Parallel"
+	;;
+all)
+        TARGET=$all
+	COMMAND() { echo "Running on $1"; ssh -t -q $*; }
+	;;
+allnetapp)
+	sname=${name#all}
+        eval TARGET=\$$sname
+	COMMAND() { echo "Running on $1"; ssh -q -o ConnectTimeout=2 $*; }
+	;;
+somenetapp)
+	TARGET=`echo $1|tr "," " "`
+	COMMAND() { echo "Running on $1"; shift; shift; ssh -q -o ConnectTimeout=2 $h $*; }
+	;;	
+some)
+	TARGET=`echo $1|tr "," " "`
+	COMMAND() { echo "Running on $1"; shift; shift; ssh -t -q -o ConnectTimeout=2 $h $*; }
+	;;	
+Psome)
+	TARGET=`echo $1|tr "," " "`
+	LOOP="Psome"
+	;;	
+cpsome)
+	TARGET=`echo $1|tr "," " "`
+	COMMAND() { echo "Copying to $1"; shift; scp $2 $h:$3; }
+	;;	
+all*)
+	sname=${name#all}
+        eval TARGET=\$$sname
+	COMMAND() { echo "Running on $1"; ssh -t -q -o ConnectTimeout=2 $*; }
+	;;
+Pall*)
+	sname=${name#Pall}
+        eval TARGET=\$$sname
+	LOOP="Parallel"
+	;;
+cp*)
+	sname=${name#cp}
+        eval TARGET=\$$sname
+	COMMAND() { echo "Copying to $1"; scp $2 $1:$3; }
+	;;
+print*)
+	sname=${name#print}
+        eval TARGET=\$$sname
+	COMMAND() { echo $1; }
+	;;
+*)
+	echo "Missing config"
+	;;
+esac
+
+#run the actual command
+case $LOOP in 
+Parallel)
+	for h in $TARGET; do echo $h; done|xargs -i -P 0 ssh -n -q -o ConnectTimeout=2 {} $*
+	;;
+Psome)
+	shift;for h in $TARGET; do echo $h; done|xargs -i -P 0 ssh -n -q -o ConnectTimeout=2 {} $*
+	;;
+*)
+	for h in $TARGET
+	do
+		COMMAND $h $*
+	done
+	;;
+esac
